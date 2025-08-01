@@ -1,0 +1,38 @@
+---
+
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: spc-mango
+  namespace: ns-mango
+spec:
+  provider: azure
+
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "false"
+    clientID: xxx # << updated via kustomization.yaml.
+    tenantId: 73578441-dc3d-4ecd-a298-fc5c6f40e191
+    keyvaultName: kv-aks-prd-nteu
+
+    # items listed here will be available as files e.g. /mnt/secrets-store/testSecret1
+    objects: |
+      array:
+        - |
+          objectName: kvTestSecret1
+          objectType: secret
+        - |
+          objectName: kvTestSecret2
+          objectType: secret
+
+  # items listed here will be available as environment variables via a synced Kubernetes Secret
+  secretObjects:
+  - secretName: secret-mango
+    type: Opaque
+    data:
+    - objectName: kvTestSecret1
+      key: testSecret1
+    - objectName: kvTestSecret2
+      key: testSecret2
+
+---

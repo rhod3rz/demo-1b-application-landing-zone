@@ -1,0 +1,99 @@
+# common-before.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+
+steps:
+
+#================================================================================================
+# AKS API
+#================================================================================================
+
+# Add the ado agent ip to the aks api.
+- task: AzureCLI@2
+  displayName: aks api - Whitelist
+  condition: eq(variables['aksapiWhitelist'], 'true')
+  inputs:
+    azureSubscription: ${{ parameters.adoServiceConnection }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    addSpnToEnvironment: true
+    inlineScript: |
+
+      echo "##########################"
+      echo "Adding Agent IP To AKS API"
+      echo "##########################"
+
+      echo "Setting variables ..."
+      export RG=rg-$(environment)-$(location)-aks
+      export NAME=aks-$(environment)-$(location)-${{ parameters.cluster }}
+      export HOST_IP="$(curl -s ifconfig.me)/32"
+      echo "RG IS: $RG"
+      echo "NAME IS: $NAME"
+      echo "HOST_IP IS: $HOST_IP"
+      echo
+
+      echo "Fetching current authorized ip ranges ..."
+      ORIGINAL_IPS=$(az aks show --resource-group $RG --name $NAME --query "apiServerAccessProfile.authorizedIpRanges" -o tsv | xargs)
+      echo "ORIGINAL_IPS IS: $ORIGINAL_IPS"
+      echo
+
+      echo "Updating authorized ip ranges ..."
+      UPDATED_IPS=$(echo "$ORIGINAL_IPS" | sed 's/ /,/g')
+      if [[ -z "$UPDATED_IPS" ]]; then
+        UPDATED_IPS="$HOST_IP"
+      else
+        UPDATED_IPS="$UPDATED_IPS,$HOST_IP"
+      fi
+      echo "UPDATED_IPS IS: $UPDATED_IPS"
+      echo
+
+      echo "Updating aks ..."
+      az aks update --resource-group $RG --name $NAME --api-server-authorized-ip-ranges $UPDATED_IPS
+      echo
+
+      echo "Waiting 30s for api update to propagate ..."
+      sleep 30
+      echo
+
+      echo "Testing aks api access ..."
+      echo
+      startTime=$(date)
+      while true; do
+        echo "Attempting to authenticate to aks and get nodes ..."
+        echo
+        az aks get-credentials --resource-group $RG --name $NAME
+        echo
+        if ! command -v kubelogin &> /dev/null; then
+          echo "Installing kubelogin ..."
+          echo
+          curl -sL https://github.com/Azure/kubelogin/releases/latest/download/kubelogin-linux-amd64.zip -o kubelogin.zip
+          unzip -q kubelogin.zip -d kubelogin
+          sudo mv kubelogin/bin/linux_amd64/kubelogin /usr/local/bin/
+          chmod +x /usr/local/bin/kubelogin
+          rm -rf kubelogin.zip kubelogin
+        else
+          echo "kubelogin is already installed: $(kubelogin --version)"
+        fi
+        export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+        export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+        kubelogin convert-kubeconfig -l spn
+        if kubectl get nodes; then
+          echo "Whitelisting Successful :-)"
+          echo
+          break
+        else
+          echo "AKS api not ready yet, retrying in 10s ..."
+          echo
+          sleep 10
+        fi
+        if [ $(date +%s) -ge $(date -d "${startTime} 1 minute" +%s) ]; then
+          echo "Whitelisting Failed :-("
+          echo
+          exit 1
+        fi
+      done
+
+      echo "HOST_IP exported: $HOST_IP"
+      echo "ORIGINAL_IPS exported: $ORIGINAL_IPS"

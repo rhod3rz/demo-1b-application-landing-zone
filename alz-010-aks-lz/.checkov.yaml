@@ -1,0 +1,19 @@
+skip-check:
+
+  #================================================================================================
+  # Other
+  #================================================================================================
+  # [CKV_TF_1] Ensure Terraform module sources use a commit hash
+  - CKV_TF_1 # This is not required.
+
+  #================================================================================================
+  # Virtual Machines
+  #================================================================================================
+  # [CKV_AZURE_1] Ensure Azure Instance does not use basic authentication (Use SSH Key Instead)
+  - CKV_AZURE_1 # This is not required.
+  # [CKV_AZURE_50] Ensure Virtual Machine Extensions are not Installed
+  - CKV_AZURE_50 # This is not required.
+  # [CKV_AZURE_149] Ensure that Virtual machine does not enable password authentication
+  - CKV_AZURE_149 # This is not required.
+  # [CKV_AZURE_178] Ensure linux VM enables SSH with keys for secure communication
+  - CKV_AZURE_178 # This is not required.

@@ -1,0 +1,71 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+steps:
+
+#================================================================================================
+# Dummy - Test
+#================================================================================================
+
+# Dummy test.
+- script: |
+    echo "Dummy - Test"
+  displayName: Dummy - Test
+
+#================================================================================================
+# Checkov - Static
+#================================================================================================
+
+# Run static checkov tests against tf files.
+- script: |
+    pip3 install checkov
+    checkov --version
+    checkov --directory $(Build.SourcesDirectory) -o junitxml --output-file-path $(Build.SourcesDirectory)/static --download-external-modules true --soft-fail
+  displayName: Checkov - Static
+  condition: eq(variables['runCheckov'], 'true')
+  continueOnError: true
+
+# Publish checkov test results.
+- task: PublishTestResults@2
+  displayName: Checkov - Static Publish
+  condition: eq(variables['runCheckov'], 'true')
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: 'results_junitxml.xml'
+    searchFolder: '$(Build.SourcesDirectory)/static'
+    failTaskOnFailedTests: true
+    publishRunAttachments: true
+    testRunTitle: 'Checkov - Static'
+
+#================================================================================================
+# Checkov - Dynamic e.g. against the plan
+#================================================================================================
+
+# Download tfplan.json.
+- task: DownloadPipelineArtifact@2
+  displayName: Checkov - Download Plan
+  condition: eq(variables['runCheckov'], 'true')
+  inputs:
+    artifactName: "$(environment)-$(region)-tfplan.json"
+    targetPath: '$(Build.SourcesDirectory)'
+
+# Run dynamic checkov tests against the terraform plan.
+- script: |
+    checkov -f $(Build.SourcesDirectory)/$(environment)-$(region)-tfplan.json -o junitxml --output-file-path $(Build.SourcesDirectory)/dynamic --download-external-modules true --soft-fail
+  displayName: Checkov - Dynamic
+  condition: eq(variables['runCheckov'], 'true')
+
+# Publish checkov test results.
+- task: PublishTestResults@2
+  displayName: Checkov - Dynamic Publish
+  condition: eq(variables['runCheckov'], 'true')
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: 'results_junitxml.xml'
+    searchFolder: '$(Build.SourcesDirectory)/dynamic'
+    failTaskOnFailedTests: true
+    publishRunAttachments: true
+    testRunTitle: 'Checkov - Dynamic'
+
+#================================================================================================
+# Other Tests As Required
+#================================================================================================

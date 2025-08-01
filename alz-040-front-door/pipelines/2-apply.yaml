@@ -1,0 +1,35 @@
+# PER PROJECT / REPO UPDATES REQUIRED:
+# Ensure all parameters are updated to reflect your project / repo.
+
+parameters:
+- name: fullEnvironment
+  displayName: "Select Environment"
+  type: string
+  default: 'prd_nteu' # underscores used here as this parameter is used for stage names which dont support dash.
+  values:
+    - 'nonprd_nteu'
+    - 'prd_nteu'
+
+name: apply - ${{ parameters.fullEnvironment }}
+
+trigger: none
+pr: none
+
+variables:
+# Variables are evaluated at runtime and automatically pass through to template files.
+# They are simpler to use but cannot be used in compile time conditionals.
+- template: 2-applyVariables.yaml
+  parameters:
+    fullEnvironment: ${{ parameters.fullEnvironment }}
+
+stages:
+
+- template: templates/apply.yaml
+  # Parameters are evaluated at compile time and cannot be changed at runtime.
+  # They must be explicitly passed to template files and are required for conditional logic.
+  parameters:
+    fullEnvironment:      ${{ parameters.fullEnvironment }}
+    useManagedDevopsPool: ${{ variables.useManagedDevopsPool }}
+    vmImageName:          ${{ variables.vmImageName }}
+    devopsPoolName:       ${{ variables.devopsPoolName }}
+    adoServiceConnection: ${{ variables.adoServiceConnection }}

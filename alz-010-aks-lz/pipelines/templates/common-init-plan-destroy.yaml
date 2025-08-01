@@ -1,0 +1,80 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+steps:
+
+#================================================================================================
+# Init & Plan Destroy
+#================================================================================================
+
+# Install specific version of terraform.
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+  displayName: TF - Install
+  inputs:
+    terraformVersion: $(terraformVersion)
+
+# Run terraform init.
+- script: |
+    terraform init -reconfigure \
+      -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+      -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+      -backend-config="container_name=$(tfstateContainerName)" \
+      -backend-config="key=$(tfstateKey)" \
+      -backend-config="use_azuread_auth=true"
+  displayName: TF - Init
+
+# Terraform format check.
+- script: terraform fmt -recursive -check
+  displayName: TF - Format
+
+# Terraform lint check
+- script: |
+    latest_version=$(curl --silent "https://api.github.com/repos/terraform-linters/tflint/releases/latest" | jq -r .tag_name)
+    tmp_dir=$(mktemp -d)
+    curl -L https://github.com/terraform-linters/tflint/releases/download/${latest_version}/tflint_linux_amd64.zip -o ${tmp_dir}/tflint.zip
+    mkdir -p ${HOME}/bin
+    unzip -o ${tmp_dir}/tflint.zip -d ${HOME}/bin/
+    chmod +x ${HOME}/bin/tflint
+    export PATH=$PATH:${HOME}/bin
+    tflint --version
+    tflint --var-file="environments/$(environment)/$(region)/$(environment)-$(region).tfvars"
+    rm -rf ${tmp_dir}
+  displayName: TF - Lint
+
+# Run terraform validate.
+- script: terraform validate
+  displayName: TF - Validate
+
+# Run terraform plan destroy.
+- script: |
+
+    # Create the terraform plan destroy.
+    terraform plan -var-file="environments/$(environment)/$(region)/$(environment)-$(region).tfvars" -destroy -out $(environment)-$(region)-tfplandestroy
+
+    # Create terraform plan destroy to upload as an ado tab.
+    terraform show -no-color $(environment)-$(region)-tfplandestroy > $(environment)-$(region)-tfplandestroy.md # for manual review purposes.
+    sed -i '1 i\```' $(environment)-$(region)-tfplandestroy.md && echo '```' >> $(environment)-$(region)-tfplandestroy.md # adding ``` for readability.
+    echo "##vso[task.uploadsummary]$(Build.SourcesDirectory)/$(environment)-$(region)-tfplandestroy.md" # upload to ado tab.
+
+  displayName: TF - Plan Destroy
+  name: plan
+
+# Publish tfplandestroy to be used by 'terraform apply -input=false tfplan'.
+- task: PublishPipelineArtifact@1
+  displayName: TF - tfplandestroy
+  inputs:
+    targetPath: "$(Build.SourcesDirectory)/$(environment)-$(region)-tfplandestroy"
+    artifactName: "$(environment)-$(region)-tfplandestroy"
+
+# Publish tfplandestroy.md for manual review purposes.
+- task: PublishPipelineArtifact@1
+  displayName: TF - tfplandestroy.md
+  inputs:
+    targetPath: "$(Build.SourcesDirectory)/$(environment)-$(region)-tfplandestroy.md"
+    artifactName: "$(environment)-$(region)-tfplandestroy.md"
+
+# Publish provider lock file to prevent errors at apply stage.
+- task: PublishPipelineArtifact@1
+  displayName: TF - terraform.lock.hcl
+  inputs:
+    targetPath: "$(Build.SourcesDirectory)/.terraform.lock.hcl"
+    artifactName: "$(environment)-$(region)-terraform-lock-file"

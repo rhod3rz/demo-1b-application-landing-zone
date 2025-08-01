@@ -1,0 +1,47 @@
+# common-inject-values.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+
+steps:
+
+#================================================================================================
+# Inject Values
+#================================================================================================
+
+- task: AzureCLI@2
+  displayName: Inject Values
+  inputs:
+    azureSubscription: ${{ parameters.adoServiceConnection }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+
+      echo "Getting aks uami client id ..."
+      echo
+      clientId=$(az identity show \
+        --name uami-aks-$(environment)-$(location)-${{ parameters.cluster }} \
+        --resource-group rg-$(environment)-$(location)-aks \
+        --query 'clientId' \
+        -o tsv)
+      echo $clientId
+      echo
+
+      echo "Injecting aks uami client id into kustomize patch file ..."
+      echo
+      sed -i "s|__uami-id__|$clientId|g" kustomize/overlays/patch-4-service-accounts.yaml
+      cat kustomize/overlays/patch-4-service-accounts.yaml
+      echo
+
+      echo "Injecting aks uami client id into kustomize patch file ..."
+      echo
+      sed -i "s|__uami-id__|$clientId|g" kustomize/overlays/patch-5-key-vaults.yaml
+      cat kustomize/overlays/patch-5-key-vaults.yaml
+      echo
+
+      echo "Injecting aks uami client id into helm values file ..."
+      echo
+      sed -i "s|__uami-id__|$clientId|g" helm/alb-controller.yaml
+      cat helm/alb-controller.yaml
+      echo

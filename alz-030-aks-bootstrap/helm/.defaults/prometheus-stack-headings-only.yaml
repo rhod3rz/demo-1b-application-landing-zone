@@ -1,0 +1,24 @@
+## Configuration for alertmanager
+## ref: https://prometheus.io/docs/alerting/alertmanager/
+##
+alertmanager:
+
+## Using default values from https://github.com/grafana/helm-charts/blob/main/charts/grafana/values.yaml
+##
+grafana:
+
+## Configuration for kube-state-metrics subchart
+##
+kube-state-metrics:
+
+## Configuration for prometheus-node-exporter subchart
+##
+prometheus-node-exporter:
+
+## Manages Prometheus and Alertmanager components
+##
+prometheusOperator:
+
+## Deploy a Prometheus instance
+##
+prometheus:

@@ -1,0 +1,43 @@
+---
+# Enables admin access to the 'ns-titan' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-titan-admin
+  namespace: ns-titan
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: 1d09e48f-bff4-42d6-85f5-c3d44b98504f  # << k8s-aks-prd-ns-titan-admin
+---
+# Enables edit access to the 'ns-titan' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-titan-edit
+  namespace: ns-titan
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: fc4fc96a-d2cd-41b6-b5a4-427e07365621  # << k8s-aks-prd-ns-titan-edit
+---
+# Enables view access to the 'ns-titan' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-titan-view
+  namespace: ns-titan
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: 08280a92-8790-43b6-92bc-f9e6fcef6274  # << k8s-aks-prd-ns-titan-view
+---

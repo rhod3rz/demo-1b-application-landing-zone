@@ -1,0 +1,18 @@
+albController:
+
+  podIdentity:
+    clientID: "__uami-id__" # application id / client id for uami-aks-prd-nteu-xxx.
+  controller:
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+        effect: "NoSchedule"
+    nodeSelector:
+      agentpool: system
+    resource:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

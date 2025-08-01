@@ -1,0 +1,107 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+parameters:
+  fullEnvironment: '' # e.g. nonprod_nteu
+  useManagedDevopsPool: ''
+  vmImageName: ''
+  devopsPoolName: ''
+  adoServiceConnection: ''
+
+stages:
+
+#================================================================================================
+# Terraform Init & Plan Destroy Stage
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_planDestroy
+
+  jobs:
+
+    - job: terraformInitPlanDestroy
+      displayName: Init & Plan Destroy
+
+      ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+        pool:
+          vmImage: ${{ parameters.vmImageName }}
+      ${{ else }}:
+        pool:
+          name: ${{ parameters.devopsPoolName }}
+
+      steps:
+
+      # Run before tasks.
+      - template: common-before.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+      # Run init & plan tasks.
+      - template: common-init-plan-destroy.yaml
+
+      # Run after tasks.
+      - template: common-after.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+#================================================================================================
+# Terraform Apply Destroy
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_applyDestroy
+  dependsOn: ${{ parameters.fullEnvironment }}_planDestroy
+  condition: succeeded()
+
+  jobs:
+
+    - deployment: ApplyDestroy
+      displayName: Apply Destroy
+
+      ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+        pool:
+          vmImage: ${{ parameters.vmImageName }}
+      ${{ else }}:
+        pool:
+          name: ${{ parameters.devopsPoolName }}
+
+      environment: "$(tfstateContainerName)-$(environment)-$(region)"
+      strategy:
+        runOnce:
+          deploy:
+
+            steps:
+
+            # Download repo & as it's not automatic for a deployment.
+            - checkout: self
+              displayName: Checkout Repo
+
+            # Run before tasks.
+            - template: common-before.yaml
+              parameters:
+                adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+            # Install specific version of terraform.
+            - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+              displayName: TF - Install
+              inputs:
+                terraformVersion: $(terraformVersion)
+
+            # Run terraform init.
+            - script: |
+                cp $(Agent.BuildDirectory)/$(environment)-$(region)-terraform-lock-file/.terraform.lock.hcl $(Build.SourcesDirectory)
+                tree -a
+                terraform init -reconfigure \
+                  -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+                  -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+                  -backend-config="container_name=$(tfstateContainerName)" \
+                  -backend-config="key=$(tfstateKey)" \
+                  -backend-config="use_azuread_auth=true"
+              displayName: TF - Init
+
+            # Run terraform apply.
+            - script: |
+                terraform apply -input=false $(Agent.BuildDirectory)/$(environment)-$(region)-tfplandestroy/$(environment)-$(region)-tfplandestroy
+              displayName: TF - Apply Destroy
+
+            # Run after tasks.
+            - template: common-after.yaml
+              parameters:
+                adoServiceConnection: ${{ parameters['adoServiceConnection'] }}

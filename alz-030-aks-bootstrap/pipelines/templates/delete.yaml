@@ -1,0 +1,90 @@
+# delete.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+  environment: ''
+
+stages:
+
+#================================================================================================
+# Delete
+#================================================================================================
+
+- stage: ${{ parameters.environment }}_${{ parameters.cluster }}_delete
+
+  jobs:
+
+    - job: delete
+      displayName: Delete
+      pool:
+        vmImage: ubuntu-latest
+
+      steps:
+
+      # Run before tasks.
+      - template: common-before.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Inject values.
+      - template: common-inject-values.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Authenticate to aks.
+      - template: common-authenticate-to-aks.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Delete kustomize changes.
+      - task: AzureCLI@2
+        displayName: Kustomize - Delete
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running kustomize delete ..."
+            echo
+            kubectl delete -k ./kustomize/overlays/.
+            echo
+
+      # Delete helm changes.
+      - task: AzureCLI@2
+        displayName: Helm - Delete
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running helm delete ..."
+            echo
+            chmod +x ./helm/9-delete.sh
+            bash ./helm/9-delete.sh
+            echo
+
+      # Run after tasks.
+      - template: common-after.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}

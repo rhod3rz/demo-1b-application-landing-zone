@@ -1,0 +1,49 @@
+# common-after.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+
+steps:
+
+#================================================================================================
+# AKS API
+#================================================================================================
+
+# Remove the ado agent ip from the aks api.
+- task: AzureCLI@2
+  displayName: aks api - Remove Whitelist
+  condition: eq(variables['aksapiWhitelist'], 'true')
+  inputs:
+    azureSubscription: ${{ parameters.adoServiceConnection }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    addSpnToEnvironment: true
+    inlineScript: |
+
+      echo "############################"
+      echo "Removing Agent IP To AKS API"
+      echo "############################"
+
+      echo "Setting variables ..."
+      export RG=rg-$(environment)-$(location)-aks
+      export NAME=aks-$(environment)-$(location)-${{ parameters.cluster }}
+      export HOST_IP="$(curl -s ifconfig.me)/32"
+      echo "RG IS: $RG"
+      echo "NAME IS: $NAME"
+      echo "HOST_IP IS: $HOST_IP"
+      echo
+
+      echo "Fetching current authorized IP ranges ..."
+      CURRENT_IPS=$(az aks show --resource-group "$RG" --name "$NAME" --query "apiServerAccessProfile.authorizedIpRanges" -o tsv | xargs)
+      echo "CURRENT_IPS IS: $CURRENT_IPS"
+      echo
+
+      echo "Filtering out HOST_IP ..."
+      UPDATED_IPS=$(echo "$CURRENT_IPS" | tr ' ' '\n' | grep -vFx "$HOST_IP" | paste -sd "," -)
+      echo "UPDATED_IPS IS: $UPDATED_IPS"
+      echo
+
+      echo "Updating AKS with filtered IP ranges ..."
+      az aks update --resource-group "$RG" --name "$NAME" --api-server-authorized-ip-ranges "$UPDATED_IPS"
+      echo "Agent ip removed from aks api ..."

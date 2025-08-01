@@ -1,0 +1,43 @@
+---
+# Enables admin access to the 'ns-mango' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-mango-admin
+  namespace: ns-mango
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: b313b123-4066-4c1a-9a10-dbb5a7f015e5  # << k8s-aks-prd-ns-mango-admin
+---
+# Enables edit access to the 'ns-mango' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-mango-edit
+  namespace: ns-mango
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: 32f88d91-e163-4888-9a2b-6959876bbde8  # << k8s-aks-prd-ns-mango-edit
+---
+# Enables view access to the 'ns-mango' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-aks-prd-ns-mango-view
+  namespace: ns-mango
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view  # << The name of the clusterrole to bind to.
+subjects:
+- kind: Group
+  name: 869e4e08-cf18-4b7f-b8c2-b55a6fba2d26  # << k8s-aks-prd-ns-mango-view
+---

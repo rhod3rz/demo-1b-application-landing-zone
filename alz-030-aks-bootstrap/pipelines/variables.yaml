@@ -1,0 +1,17 @@
+# variables.yaml
+
+parameters:
+  environment: ''
+
+variables:
+
+# prd-nteu
+- ${{ if eq(parameters['environment'], 'prd_nteu') }}:
+  - name: adoServiceConnection
+    value: 'appl_prd_01'
+  - name: environment
+    value: 'prd'
+  - name: location
+    value: 'nteu'
+  - name: aksapiWhitelist
+    value: 'false'

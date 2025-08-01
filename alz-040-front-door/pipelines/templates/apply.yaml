@@ -1,0 +1,158 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+parameters:
+  fullEnvironment: '' # e.g. nonprod_nteu
+  useManagedDevopsPool: ''
+  vmImageName: ''
+  devopsPoolName: ''
+  adoServiceConnection: ''
+
+stages:
+
+#================================================================================================
+# Terraform Init & Plan Stage
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_plan
+
+  jobs:
+
+    - job: terraformInitPlan
+      displayName: Init & Plan
+
+      ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+        pool:
+          vmImage: ${{ parameters.vmImageName }}
+      ${{ else }}:
+        pool:
+          name: ${{ parameters.devopsPoolName }}
+
+      steps:
+
+      # Run before tasks.
+      - template: common-before.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+      # Run init & plan tasks.
+      - template: common-init-plan.yaml
+
+      # Run after tasks.
+      - template: common-after.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+#================================================================================================
+# Test Stage
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_test
+  dependsOn: ${{ parameters.fullEnvironment }}_plan
+  condition: succeeded()
+
+  jobs:
+
+    - job: Test
+      displayName: Test
+
+      ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+        pool:
+          vmImage: ${{ parameters.vmImageName }}
+      ${{ else }}:
+        pool:
+          name: ${{ parameters.devopsPoolName }}
+
+      steps:
+
+      # Run tests.
+      - template: common-test.yaml
+
+#================================================================================================
+# Check for DESTROY Changes
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_checkDestroy
+  dependsOn: ${{ parameters.fullEnvironment }}_test
+  condition: and(succeeded(), eq(dependencies.${{ parameters.fullEnvironment }}_plan.outputs['terraformInitPlan.plan.destroyWarning'], 'true'))
+
+  jobs:
+
+    - job: checkDestroy
+      displayName: Check For Destroy
+      pool: 'server'
+      timeoutInMinutes: 4320
+
+      steps:
+
+      # Manual step to approve the terraform plan.
+      - task: ManualValidation@1
+        displayName: TF - Manual Validation
+        inputs:
+          notifyUsers: 'first.last@rhod3rz.com'
+          instructions: '⚠️ The plan contains DESTROY; double check before proceeding!'
+          onTimeout: 'reject'
+
+#================================================================================================
+# Terraform Apply
+#================================================================================================
+
+- stage: ${{ parameters.fullEnvironment }}_apply
+  dependsOn: ${{ parameters.fullEnvironment }}_checkDestroy
+  condition: and(or(succeeded(), eq(dependencies.${{ parameters.fullEnvironment }}_checkDestroy.result, 'skipped')), eq(dependencies.${{ parameters.fullEnvironment }}_plan.outputs['terraformInitPlan.plan.planChanged'], 'true'))
+
+  jobs:
+
+    - deployment: Apply
+      displayName: Apply
+
+      ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+        pool:
+          vmImage: ${{ parameters.vmImageName }}
+      ${{ else }}:
+        pool:
+          name: ${{ parameters.devopsPoolName }}
+
+      environment: "$(tfstateContainerName)-$(environment)-$(region)"
+
+      strategy:
+        runOnce:
+          deploy:
+
+            steps:
+
+            # Download repo & as it's not automatic for a deployment.
+            - checkout: self
+              displayName: Checkout Repo
+
+            # Run before tasks.
+            - template: common-before.yaml
+              parameters:
+                adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+            # Install specific version of terraform.
+            - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+              displayName: TF - Install
+              inputs:
+                terraformVersion: $(terraformVersion)
+
+            # Run terraform init.
+            - script: |
+                cp $(Agent.BuildDirectory)/$(environment)-$(region)-terraform-lock-file/.terraform.lock.hcl $(Build.SourcesDirectory)
+                tree -a
+                terraform init -reconfigure \
+                  -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+                  -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+                  -backend-config="container_name=$(tfstateContainerName)" \
+                  -backend-config="key=$(tfstateKey)" \
+                  -backend-config="use_azuread_auth=true"
+              displayName: TF - Init
+
+            # Run terraform apply.
+            - script: |
+                terraform apply -input=false $(Agent.BuildDirectory)/$(environment)-$(region)-tfplan/$(environment)-$(region)-tfplan
+              displayName: TF - Apply
+
+            # Run after tasks.
+            - template: common-after.yaml
+              parameters:
+                adoServiceConnection: ${{ parameters['adoServiceConnection'] }}

@@ -1,0 +1,59 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+parameters:
+  useManagedDevopsPool: ''
+  vmImageName: ''
+  devopsPoolName: ''
+  adoServiceConnection: ''
+
+jobs:
+
+#================================================================================================
+# Terraform Init & Plan Job
+#================================================================================================
+
+- job: terraformInitPlan
+  displayName: Init & Plan
+
+  ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+    pool:
+      vmImage: ${{ parameters.vmImageName }}
+  ${{ else }}:
+    pool:
+      name: ${{ parameters.devopsPoolName }}
+
+  steps:
+
+    # Run before tasks.
+    - template: common-before.yaml
+      parameters:
+        adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+    # Run init & plan tasks.
+    - template: common-init-plan.yaml
+
+    # Run after tasks.
+    - template: common-after.yaml
+      parameters:
+        adoServiceConnection: ${{ parameters['adoServiceConnection'] }}
+
+#================================================================================================
+# Test Job
+#================================================================================================
+
+- job: terraformTest
+  displayName: Test
+  dependsOn: terraformInitPlan
+  condition: succeeded()
+
+  ${{ if eq(parameters.useManagedDevopsPool, false) }}:
+    pool:
+      vmImage: ${{ parameters.vmImageName }}
+  ${{ else }}:
+    pool:
+      name: ${{ parameters.devopsPoolName }}
+
+  steps:
+
+    # Run tests.
+    - template: common-test.yaml

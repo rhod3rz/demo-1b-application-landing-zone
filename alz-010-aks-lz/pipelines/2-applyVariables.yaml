@@ -1,0 +1,48 @@
+parameters:
+  fullEnvironment: ''
+
+variables:
+
+# prd-nteu
+- ${{ if eq(parameters['fullEnvironment'], 'prd_nteu') }}:
+  # global
+  - name: subscriptionId
+    value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+  - name: environment
+    value: 'prd'
+  - name: region
+    value: 'nteu'
+  # keyvault
+  - name: keyvaultWhitelist
+    value: 'false'
+  - name: keyvaultSubscription
+    value: '21c8877e-a2da-4483-8ada-25856954e76b'
+  - name: keyvaultName
+    value: 'kv-prd-nteu'
+  # terraform
+  - name: tfstateWhitelist
+    value: 'true'
+  - name: tfstateSubscription
+    value: '21c8877e-a2da-4483-8ada-25856954e76b'
+  - name: tfstateResourceGroup
+    value: 'rg-prd-nteu-tfstate'
+  - name: tfstateStorageAccount
+    value: 'sardzprdnteutfstate'
+  - name: tfstateContainerName
+    value: 'alz-010-aks-lz'
+  - name: tfstateKey
+    value: 'prd-nteu.tfstate'
+  - name: terraformVersion
+    value: 'latest'
+  # testing
+  - name: runCheckov
+    value: 'true'
+  # compile time parameters
+  - name: useManagedDevopsPool
+    value: 'false'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: devopsPoolName
+    value: 'mdp-prd-nteu'
+  - name: adoServiceConnection
+    value: 'appl_prd_01'

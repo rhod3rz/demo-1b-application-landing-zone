@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 1-namespaces.yaml
+  - 2a-cluster-roles.yaml
+  - 2b-cluster-role-bindings.yaml
+  - 3a-role-bindings-ns-mango.yaml
+  - 3a-role-bindings-ns-titan.yaml
+  - 4-service-accounts.yaml
+  - 5-key-vaults.yaml
+  - 6-promethus-custom-rules.yaml

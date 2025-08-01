@@ -1,0 +1,3 @@
+name,priority,direction,access,protocol,source_port_range,source_port_ranges,destination_port_range,destination_port_ranges,source_address_prefix,source_address_prefixes,source_application_security_group_ids,destination_address_prefix,destination_address_prefixes,destination_application_security_group_ids,description
+allow-22-inbound,500,Inbound,Allow,Tcp,*,,22,,,"51.105.10.80/32,51.105.9.17/32",,*,,,allow 22 for ssh
+allow-3389-inbound,510,Inbound,Allow,Tcp,*,,3389,,,"51.105.10.80/32,51.105.9.17/32",,*,,,allow 3389 for rdp

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crashloop-test
+  namespace: ns-mango
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crashloop-test
+  template:
+    metadata:
+      labels:
+        app: crashloop-test
+    spec:
+      nodeSelector:
+        rdzpool: user
+      containers:
+      - name: crash
+        image: busybox
+        command: ["/bin/sh", "-c", "exit 1"]
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 20m
+            memory: 32Mi

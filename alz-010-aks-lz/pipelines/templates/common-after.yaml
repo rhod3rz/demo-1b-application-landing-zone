@@ -1,0 +1,70 @@
+# PER PROJECT / REPO UPDATES REQUIRED: NONE
+
+parameters:
+  adoServiceConnection: ''
+
+steps:
+
+#================================================================================================
+# Key Vault
+#================================================================================================
+
+# Remove the ado agent ip from the key vault.
+- task: AzureCLI@2
+  displayName: keyvault - Remove Whitelist
+  condition: eq(variables['keyvaultWhitelist'], 'true')
+  inputs:
+    azureSubscription: ${{ parameters['adoServiceConnection'] }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      echo "################################"
+      echo "Removing Agent IP From Key Vault"
+      echo "################################"
+      export HOST_IP="$(curl -s ifconfig.me)"
+      echo "IP OF AGENT IS: $HOST_IP"
+      echo "Key Vault Name: $(keyvaultName)"
+      echo "Switching To Management Subscription (mana_nonprod_01) ..."
+      az account set --subscription $(keyvaultSubscription)
+      az keyvault network-rule remove --name $(keyvaultName) --ip-address $HOST_IP --subscription $(keyvaultSubscription)
+
+#================================================================================================
+# Terraform State
+#================================================================================================
+
+# Remove the ado agent ip from the terraform state storage account.
+- task: AzureCLI@2
+  displayName: tfstate - Remove Whitelist
+  condition: eq(variables['tfstateWhitelist'], 'true')
+  inputs:
+    azureSubscription: ${{ parameters['adoServiceConnection'] }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    failOnStandardError: false
+    inlineScript: |
+      echo "######################################"
+      echo "Removing Agent IP From Storage Account"
+      echo "######################################"
+      export HOST_IP="$(curl -s ifconfig.me)"
+      echo "IP OF AGENT IS: $HOST_IP"
+      echo "Resource Group: $(tfstateResourceGroup)"
+      echo "Storage Account: $(tfstateStorageAccount)"
+      echo "Switching To Management Subscription (mana_nonprod_01) ..."
+      az account set --subscription $(tfstateSubscription)
+      az storage account update --resource-group $(tfstateResourceGroup) --name $(tfstateStorageAccount) --default-action Deny
+
+#================================================================================================
+# Agent CleanUp
+#================================================================================================
+
+# Cleanup ado agent workspace.
+- script: |
+    # Delete all workspace files.
+    echo "##[command] Cleaning Workspace ..."
+    rm -rvf $(Build.SourcesDirectory)/*
+    # Required to clean up git credentials if running self hosted agents.
+    # Without this step the self hosted agent can intermittently error when running the checkout step with permission errors.
+    echo "##[command] Unsetting GIT ExtraHeader Config For dev.azure.com ..."
+    git config --global --unset http.https://dev.azure.com/.extraheader && echo "Unset" || echo "Nothing To Unset"
+  displayName: ADO Agent - Clean

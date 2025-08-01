@@ -1,0 +1,3 @@
+- op: replace
+  path: /spec/parameters/clientID
+  value:  __uami-id__ # application id / client id for uami-aks-prd-nteu-xxx.

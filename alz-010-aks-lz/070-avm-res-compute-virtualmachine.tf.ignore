@@ -1,0 +1,40 @@
+# Create virtual machines.
+module "avm-res-compute-virtualmachine" {
+  source                            = "Azure/avm-res-compute-virtualmachine/azurerm"
+  version                           = "0.18.0"
+  enable_telemetry                  = false
+  for_each                          = { for k, v in var.virtual_machines : k => v }
+  location                          = var.location
+  resource_group_name               = module.avm-res-resources-resourcegroup[each.value.resource_group_name].name
+  name                              = each.key
+  os_type                           = each.value.os_type
+  sku_size                          = each.value.sku_size
+  zone                              = each.value.zone
+  disable_password_authentication   = each.value.disable_password_authentication
+  admin_username                    = each.value.admin_username
+  admin_password                    = data.azurerm_key_vault_secret.kvs[each.key].value
+  boot_diagnostics                  = each.value.boot_diagnostics
+  enable_automatic_updates          = each.value.enable_automatic_updates
+  secure_boot_enabled               = each.value.secure_boot_enabled
+  vtpm_enabled                      = each.value.vtpm_enabled
+  vm_agent_platform_updates_enabled = each.value.vm_agent_platform_updates_enabled
+  source_image_reference            = each.value.source_image_reference
+  os_disk                           = each.value.os_disk
+  network_interfaces = {
+    network_interface_1 = {
+      name = "${each.key}-nic"
+      ip_configurations = {
+        ip_configuration_1 = {
+          name                          = "${each.key}-nic-ipconfig1"
+          create_public_ip_address      = each.value.nic_create_public_ip_address
+          public_ip_address_name        = "${each.key}-nic-pip"
+          private_ip_address_allocation = each.value.private_ip_address_allocation
+          private_ip_address            = each.value.private_ip_address
+          private_ip_subnet_resource_id = module.avm-res-network-virtualnetwork[each.value.private_ip_vnet_name].subnets[each.value.private_ip_subnet_name].resource_id
+        }
+      }
+    }
+  }
+  shutdown_schedules = each.value.shutdown_schedules
+  tags               = var.tags
+}

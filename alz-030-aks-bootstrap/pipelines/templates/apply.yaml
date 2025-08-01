@@ -1,0 +1,199 @@
+# apply.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+  environment: ''
+
+stages:
+
+#================================================================================================
+# Preview
+#================================================================================================
+
+- stage: ${{ parameters.environment }}_${{ parameters.cluster }}_preview
+
+  jobs:
+
+    - job: preview
+      displayName: Preview
+      pool:
+        vmImage: ubuntu-latest
+
+      steps:
+
+      # Run before tasks.
+      - template: common-before.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Inject values.
+      - template: common-inject-values.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Authenticate to aks.
+      - template: common-authenticate-to-aks.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Preview kustomize changes.
+      - task: AzureCLI@2
+        displayName: Kustomize - Preview
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running kustomize preview ..."
+            echo
+            kubectl kustomize ./kustomize/overlays/.
+            echo
+
+      # Preview helm changes.
+      - task: AzureCLI@2
+        displayName: Helm - Preview
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running helm preview ..."
+            echo
+            chmod +x ./helm/1-preview.sh
+            bash ./helm/1-preview.sh
+            echo
+
+      # Run after tasks.
+      - template: common-after.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+#================================================================================================
+# Approval
+#================================================================================================
+
+- stage: ${{ parameters.environment }}_${{ parameters.cluster }}_approval
+  dependsOn: ${{ parameters.environment }}_${{ parameters.cluster }}_preview
+  condition: succeeded()
+
+  jobs:
+
+    - job: approval
+      displayName: Approval
+      pool: 'server'
+      timeoutInMinutes: 4320
+
+      steps:
+
+      # Manual step to approve.
+      - task: ManualValidation@1
+        displayName: Approval
+        inputs:
+          notifyUsers: 'first.last@rhod3rz.com'
+          instructions: '⚠️ Do you want to proceed?'
+          onTimeout: 'reject'
+
+#================================================================================================
+# Apply
+#================================================================================================
+
+- stage: ${{ parameters.environment }}_${{ parameters.cluster }}_apply
+  dependsOn: ${{ parameters.environment }}_${{ parameters.cluster }}_approval
+  condition: succeeded()
+
+  jobs:
+
+    - job: apply
+      displayName: Apply
+      pool:
+        vmImage: ubuntu-latest
+
+      steps:
+
+      # Run before tasks.
+      - template: common-before.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Inject values.
+      - template: common-inject-values.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Authenticate to aks.
+      - template: common-authenticate-to-aks.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}
+
+      # Apply kustomize changes.
+      - task: AzureCLI@2
+        displayName: Kustomize - Apply
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running kustomize apply ..."
+            echo
+            kubectl apply -k ./kustomize/overlays/.
+            echo
+
+      # Apply helm changes.
+      - task: AzureCLI@2
+        displayName: Helm - Apply
+        inputs:
+          azureSubscription: ${{ parameters.adoServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          addSpnToEnvironment: true
+          inlineScript: |
+
+            echo "Authenticate to aks ..."
+            echo
+            export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+            export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+            echo
+
+            echo "Running helm apply ..."
+            echo
+            chmod +x ./helm/2-apply.sh
+            bash ./helm/2-apply.sh
+            echo
+
+      # Run after tasks.
+      - template: common-after.yaml
+        parameters:
+          adoServiceConnection: ${{ parameters.adoServiceConnection }}
+          cluster: ${{ parameters.cluster }}

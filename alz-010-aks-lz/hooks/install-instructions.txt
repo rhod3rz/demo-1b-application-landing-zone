@@ -1,0 +1,11 @@
+# What is pre-commit?
+Pre-commit has been configured to run terraform format, validate and tflint before every commit.
+This shifts testing left enabling issues with those items to be picked up locally, rather than the pipeline failing.
+
+# How do I install?
+
+Option 1:
+- Manually copy pre-commit & pre-commit.ps1 to .git/hooks
+
+Option 2:
+- Run install-hooks.ps1 from the repo root

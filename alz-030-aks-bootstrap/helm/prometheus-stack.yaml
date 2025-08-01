@@ -1,0 +1,160 @@
+alertmanager:
+  alertmanagerSpec:
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+        effect: "NoSchedule"
+    nodeSelector:
+      agentpool: system
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: managed-csi
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+  # alertmanager email configuration for mailtrap.
+  tplConfig: true
+  stringConfig: |
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: 'sandbox.smtp.mailtrap.io:2525'
+      smtp_from: 'alertmanager@example.com'
+      smtp_auth_username: '210fcb3fcf6216'
+      smtp_auth_password: '**************'
+    route:
+      receiver: 'null'                     # drop all alerts unless explicitly matched in a sub-route.
+      group_by: ['alertname', 'namespace'] # group alerts that share the same alertname and namespace.
+      group_wait: 30s                      # wait 30s before sending the first alert in a group.
+      group_interval: 5m                   # if new alerts arrive in the same group, wait 5m before sending more.
+      repeat_interval: 5m                  # re-send the same alert only if it remains active for 5m.
+      routes:
+        - receiver: 'mailtrap-critical'    # route below is triggered if alert matches.
+          matchers:
+            - severity = "critical"        # only alerts explicitly labeled as 'severity=critical'.
+    receivers:
+      - name: 'mailtrap-critical'          # receiver name used in the route above.
+        email_configs:
+          - to: 'inbox@example.com'        # mailtrap inbox email (could be anything).
+            send_resolved: true            # send notifications when alert is resolved (FIRING → RESOLVED).
+      - name: 'null'                       # fallback receiver for all unmatched alerts (info/warning/undefined).
+
+# default alert rules to disable.
+# rule details can be found here: charts/kube-prometheus-stack/templates/prometheus/rules-1.14
+defaultRules:
+  rules:
+    etcd: false                      # not exposed on aks.
+    kubeApiserverAvailability: false # not exposed on aks.
+    kubeApiserverBurnrate: false     # not exposed on aks.
+    kubeApiserverHistogram: false    # not exposed on aks.
+    kubeApiserverSlos: false         # not exposed on aks.
+    kubeControllerManager: false     # not exposed on aks.
+    kubeProxy: false                 # we are using azure cni.
+    kubernetesResources: false       # disabled due to 'PrometheusRuleFailures' critical errors; replaced with custom kustomize\base\6-promethus-custom-rules.yaml.
+    kubernetesSystem: false          # disabled due to 'PrometheusRuleFailures' critical errors; no 'Severity: Critical' in here.
+    kubeSchedulerAlerting: false     # not exposed on aks.
+    kubeSchedulerRecording: false    # not exposed on aks.
+    windows: false                   # we are not using windows nodes.
+
+# tweak severity settings to hit the email alerts.
+customRules:
+  KubePodCrashLooping:
+    severity: critical
+  KubePodNotReady:
+    severity: critical
+  KubeDeploymentRolloutStuck:
+    severity: critical
+
+grafana:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Exists"
+      effect: "NoSchedule"
+  nodeSelector:
+    agentpool: system
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    storageClassName: "managed-csi"
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+
+kube-state-metrics:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Exists"
+      effect: "NoSchedule"
+  nodeSelector:
+    agentpool: system
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
+prometheus-node-exporter:
+  # no tolerations required as we want to run on all nodes.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
+prometheusOperator:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Exists"
+      effect: "NoSchedule"
+  nodeSelector:
+    agentpool: system
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
+prometheus:
+  prometheusSpec:
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+        effect: "NoSchedule"
+    nodeSelector:
+      agentpool: system
+    retention: 5d # default = 10d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 250m
+        memory: 1024Mi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "managed-csi"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi

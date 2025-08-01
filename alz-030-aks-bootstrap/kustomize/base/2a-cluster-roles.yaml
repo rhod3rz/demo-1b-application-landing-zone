@@ -1,0 +1,14 @@
+---
+# Custom ClusterRole to allow cluster-wide reader access.
+# There is no built-in role that enables this; view is the closest, but that is intended for namespace-level binding only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: custom-cluster-reader # custom prefixed used to clearly label.
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["*"]
+  verbs: ["get", "head"]
+---

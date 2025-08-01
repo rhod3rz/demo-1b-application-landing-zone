@@ -1,0 +1,41 @@
+# 9-delete.yaml
+
+parameters:
+- name: environment
+  displayName: "Select Environment"
+  type: string
+  default: 'prd_nteu' # underscores used here as this parameter is used for stage names which dont support dash.
+  values:
+    - 'dev_nteu'
+    - 'tst_nteu'
+    - 'prd_nteu'
+    - 'prd_wteu'
+- name: cluster
+  displayName: "Select Cluster Type"
+  type: string
+  default: 'blu'
+  values:
+    - 'blu'
+    - 'grn'
+
+name: bootstrap - ${{ parameters.environment }}_${{ parameters.cluster }}
+
+trigger: none
+pr: none
+
+variables:
+# Variables are evaluated at runtime and automatically pass through to template files.
+# They are simpler to use but cannot be used in compile time conditionals.
+- template: variables.yaml
+  parameters:
+    environment: ${{ parameters.environment }}
+
+stages:
+
+- template: templates/delete.yaml
+  # Parameters are evaluated at compile time and cannot be changed at runtime.
+  # They must be explicitly passed to template files and are required for conditional logic.
+  parameters:
+    adoServiceConnection: ${{ variables.adoServiceConnection }}
+    cluster:              ${{ parameters.cluster }}
+    environment:          ${{ parameters.environment }}

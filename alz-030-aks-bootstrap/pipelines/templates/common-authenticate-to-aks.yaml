@@ -1,0 +1,50 @@
+# common-authenticate-to-aks.yaml
+
+parameters:
+  adoServiceConnection: ''
+  cluster: ''
+
+steps:
+
+#================================================================================================
+# Authenticate To AKS
+#================================================================================================
+
+- task: AzureCLI@2
+  displayName: Authenticate to AKS
+  inputs:
+    azureSubscription: ${{ parameters.adoServiceConnection }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    addSpnToEnvironment: true
+    inlineScript: |
+
+      echo "Set aks variables ..."
+      echo
+      export RG=rg-$(environment)-$(location)-aks
+      export NAME=aks-$(environment)-$(location)-${{ parameters.cluster }}
+      echo
+
+      echo "Get aks credentials ..."
+      echo
+      az aks get-credentials --resource-group $RG --name $NAME
+      echo
+
+      if ! command -v kubelogin &> /dev/null; then
+        echo "Installing kubelogin ..."
+        curl -sL https://github.com/Azure/kubelogin/releases/latest/download/kubelogin-linux-amd64.zip -o kubelogin.zip
+        unzip -q kubelogin.zip -d kubelogin
+        sudo mv kubelogin/bin/linux_amd64/kubelogin /usr/local/bin/
+        chmod +x /usr/local/bin/kubelogin
+        rm -rf kubelogin.zip kubelogin
+      else
+        echo "kubelogin is already installed: $(kubelogin --version)"
+      fi
+
+      echo "Login and test ..."
+      echo
+      export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$servicePrincipalId
+      export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$servicePrincipalKey
+      kubelogin convert-kubeconfig -l spn
+      kubectl get nodes
+      echo

@@ -1,0 +1,96 @@
+parameters:
+  fullEnvironment: ''
+
+variables:
+
+# prd-nteu-blu
+- ${{ if eq(parameters['fullEnvironment'], 'prd_nteu_blu') }}:
+  # global
+  - name: subscriptionId
+    value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+  - name: environment
+    value: 'prd'
+  - name: region
+    value: 'nteu'
+  - name: cluster
+    value: 'blu'
+  # keyvault
+  - name: keyvaultWhitelist
+    value: 'true'
+  - name: keyvaultSubscription
+    value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+  - name: keyvaultName
+    value: 'kv-aks-prd-nteu'
+  # terraform
+  - name: tfstateWhitelist
+    value: 'true'
+  - name: tfstateSubscription
+    value: '21c8877e-a2da-4483-8ada-25856954e76b'
+  - name: tfstateResourceGroup
+    value: 'rg-prd-nteu-tfstate'
+  - name: tfstateStorageAccount
+    value: 'sardzprdnteutfstate'
+  - name: tfstateContainerName
+    value: 'alz-020-aks-clusters'
+  - name: tfstateKey
+    value: 'prd-nteu-blu.tfstate'
+  - name: terraformVersion
+    value: 'latest'
+  # testing
+  - name: runCheckov
+    value: 'true'
+  # compile time parameters
+  - name: useManagedDevopsPool
+    value: 'false'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: devopsPoolName
+    value: 'mdp-prd-nteu'
+  - name: adoServiceConnection
+    value: 'appl_prd_01'
+
+# prd-nteu-grn
+- ${{ if eq(parameters['fullEnvironment'], 'prd_nteu_grn') }}:
+  # global
+  - name: subscriptionId
+    value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+  - name: environment
+    value: 'prd'
+  - name: region
+    value: 'nteu'
+  - name: cluster
+    value: 'grn'
+  # keyvault
+  - name: keyvaultWhitelist
+    value: 'true'
+  - name: keyvaultSubscription
+    value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+  - name: keyvaultName
+    value: 'kv-aks-prd-nteu'
+  # terraform
+  - name: tfstateWhitelist
+    value: 'true'
+  - name: tfstateSubscription
+    value: '21c8877e-a2da-4483-8ada-25856954e76b'
+  - name: tfstateResourceGroup
+    value: 'rg-prd-nteu-tfstate'
+  - name: tfstateStorageAccount
+    value: 'sardzprdnteutfstate'
+  - name: tfstateContainerName
+    value: 'alz-020-aks-clusters'
+  - name: tfstateKey
+    value: 'prd-nteu-grn.tfstate'
+  - name: terraformVersion
+    value: 'latest'
+  # testing
+  - name: runCheckov
+    value: 'true'
+  # compile time parameters
+  - name: useManagedDevopsPool
+    value: 'false'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: devopsPoolName
+    value: 'mdp-prd-nteu'
+  - name: adoServiceConnection
+    value: 'appl_prd_01'

@@ -1,0 +1,69 @@
+# kubernetes-resources
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-stack-kube-prom-kubernetes-resources-custom
+  namespace: monitoring
+  labels:
+    app: kube-prometheus-stack
+    release: prometheus-stack
+    app.kubernetes.io/instance: prometheus-stack
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 75.15.1
+    chart: kube-prometheus-stack-75.15.1
+    heritage: Helm
+spec:
+  groups:
+    - name: kubernetes-resources
+      rules:
+        - alert: KubeCPUOvercommit
+          annotations:
+            description: Cluster {{ $labels.cluster }} has overcommitted CPU resource requests for Pods by {{ $value }} CPU shares and cannot tolerate node failure.
+            runbook_url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubecpuovercommit
+            summary: Cluster has overcommitted CPU resource requests.
+          expr: |
+            sum(namespace_cpu:kube_pod_container_resource_requests:sum{}) by (cluster)
+              - (sum(kube_node_status_allocatable{resource="cpu"}) by (cluster)
+              - max(kube_node_status_allocatable{resource="cpu"}) by (cluster)) > 0
+            and
+            (sum(kube_node_status_allocatable{resource="cpu"}) by (cluster)
+              - max(kube_node_status_allocatable{resource="cpu"}) by (cluster)) > 0
+          for: 10m
+          labels:
+            severity: critical
+
+        - alert: KubeMemoryOvercommit
+          annotations:
+            description: Cluster {{ $labels.cluster }} has overcommitted memory resource requests for Pods by {{ $value | humanize }} bytes and cannot tolerate node failure.
+            runbook_url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubememoryovercommit
+            summary: Cluster has overcommitted memory resource requests.
+          expr: |
+            sum(namespace_memory:kube_pod_container_resource_requests:sum{}) by (cluster)
+              - (sum(kube_node_status_allocatable{resource="memory"}) by (cluster)
+              - max(kube_node_status_allocatable{resource="memory"}) by (cluster)) > 0
+            and
+            (sum(kube_node_status_allocatable{resource="memory"}) by (cluster)
+              - max(kube_node_status_allocatable{resource="memory"}) by (cluster)) > 0
+          for: 10m
+          labels:
+            severity: critical
+
+        - alert: CPUThrottlingHigh
+          annotations:
+            description: '{{ $value | humanizePercentage }} throttling of CPU in namespace {{ $labels.namespace }} for container {{ $labels.container }} in pod {{ $labels.pod }} on cluster {{ $labels.cluster }}.'
+            runbook_url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/cputhrottlinghigh
+            summary: Processes experience elevated CPU throttling.
+          expr: |
+            sum(increase(container_cpu_cfs_throttled_periods_total{container!="", job="kubelet", metrics_path="/metrics/cadvisor"}[5m]))
+              without (id, metrics_path, name, image, endpoint, job, node)
+            /
+            on(cluster, namespace, pod, container, instance) group_left
+            sum(increase(container_cpu_cfs_periods_total{job="kubelet", metrics_path="/metrics/cadvisor"}[5m]))
+              without (id, metrics_path, name, image, endpoint, job, node)
+            > 0.25
+          for: 15m
+          labels:
+            severity: critical
+---

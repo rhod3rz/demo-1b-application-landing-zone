@@ -1,0 +1,42 @@
+# PER PROJECT / REPO UPDATES REQUIRED:
+# Ensure all parameters are updated to reflect your project / repo.
+
+trigger: none
+pr: none
+
+stages:
+
+- stage: prd_nteu
+  displayName: prd_nteu_validate
+
+  # Variables are evaluated at runtime and automatically pass through to template files.
+  # They are simpler to use but cannot be used in compile time conditionals.
+  variables:
+    # global
+    subscriptionId:        '2bc7b65e-18d6-42ae-afb2-e66d50be6b05' # appl_prd_01.
+    environment:           'prd'                                  # used to form the path to the tfvars file.
+    region:                'nteu'                                 # used to form the path to the tfvars file.
+    # keyvault
+    keyvaultWhitelist:     'false'                                # do you want to add the ado agent ip to the keyvault firewall.
+    keyvaultSubscription:  '21c8877e-a2da-4483-8ada-25856954e76b' # used if keyvaultWhitelist = true | used for removing and applying firewall.
+    keyvaultName:          'kv-prd-nteu'                          # used if keyvaultWhitelist = true.
+    # terraform
+    tfstateWhitelist:      'true'                                 # do you want to add the ado agent ip to the tfstate firewall.
+    tfstateSubscription:   '21c8877e-a2da-4483-8ada-25856954e76b' # used if tfstateWhitelist = true | used for removing and applying firewall.
+    tfstateResourceGroup:  'rg-prd-nteu-tfstate'                  # used if tfstateWhitelist = true | also used for terraform init.
+    tfstateStorageAccount: 'sardzprdnteutfstate'                  # used if tfstateWhitelist = true | also used for terraform init.
+    tfstateContainerName:  'alz-040-front-door'                   # used for terraform init.
+    tfstateKey:            'prd-nteu.tfstate'                     # used for terraform init.
+    terraformVersion:      'latest'                               # what version of terraform do you want to use.
+    # testing
+    runCheckov:            'true'                                 # do you want to run checkov.
+
+  jobs:
+  - template: templates/validate.yaml
+    # Parameters are evaluated at compile time and cannot be changed at runtime.
+    # They must be explicitly passed to template files and are required for conditional logic.
+    parameters:
+      useManagedDevopsPool: 'false'         # are you ready to use a managed devops pool.
+      vmImageName:          'ubuntu-latest' # if not what ado agent image do you want to use.
+      devopsPoolName:       'mdp-prd-nteu'  # the managed devops pool name, ignored if useManagedDevopsPool = false.
+      adoServiceConnection: 'appl_prd_01'   # the ado service connection to use.
